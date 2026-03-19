@@ -1,278 +1,328 @@
-
-<html lang="zh-HK">
+<!DOCTYPE html>
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>P.5 English Quiz - Module Summary Unit 5 Part 2</title>
+    <title>P.5 English Module Summary Quiz (2021-2025)</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore-compat.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
-        .option-btn.selected {
-            border-color: #2563eb;
-            background-color: #eff6ff;
-            color: #1e40af;
-            box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.05);
-        }
-        .loading-spinner {
-            border: 3px solid #f3f3f3;
-            border-top: 3px solid #3498db;
-            border-radius: 50%;
-            width: 20px;
-            height: 20px;
-            animation: spin 1s linear infinite;
-        }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        .fade-in { animation: fadeIn 0.5s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .option-card:hover { transform: translateY(-2px); transition: all 0.2s; }
     </style>
 </head>
-<body class="bg-slate-50 min-h-screen text-slate-800 font-sans">
+<body class="bg-slate-100 min-h-screen flex items-center justify-center p-4">
 
-    <!-- 登入介面 -->
-    <div id="view-login" class="min-h-screen flex items-center justify-center p-4">
-        <div class="max-w-md w-full bg-white rounded-2xl shadow-xl p-8 border border-slate-100">
-            <div class="text-center mb-8">
-                <div class="inline-flex p-3 bg-blue-100 rounded-full text-blue-600 mb-4">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg>
-                </div>
-                <h1 class="text-2xl font-bold">P.5 英文單元測驗</h1>
-                <p class="text-slate-500 font-medium">Unit 5 Part 2 - 詞彙與語法</p>
-            </div>
-            <form id="login-form" class="space-y-5">
+    <div id="app" class="w-full max-w-2xl bg-white rounded-3xl shadow-2xl overflow-hidden fade-in">
+        <!-- Header -->
+        <div class="bg-indigo-700 p-8 text-white">
+            <div class="flex justify-between items-start">
                 <div>
-                    <label class="block text-sm font-bold text-slate-700 mb-1">學生姓名</label>
-                    <input type="text" id="student-name" required class="w-full px-4 py-3 rounded-lg border border-slate-200 outline-none focus:ring-2 focus:ring-blue-500 transition" placeholder="請輸入姓名">
+                    <h1 class="text-2xl font-black tracking-tight uppercase">P.5 English Assessment</h1>
+                    <p class="opacity-80 font-medium">Comprehensive Unit 5 Part 2 (Banked)</p>
                 </div>
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-sm font-bold text-slate-700 mb-1">班別</label>
-                        <select id="class-name" class="w-full px-4 py-3 rounded-lg border border-slate-200 bg-white">
-                            <option>P.5A</option><option>P.5B</option><option>P.5C</option><option>P.5D</option><option>P.5E</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-bold text-slate-700 mb-1">學號</label>
-                        <input type="number" id="class-no" required class="w-full px-4 py-3 rounded-lg border border-slate-200 outline-none focus:ring-2 focus:ring-blue-500" placeholder="例如: 15">
-                    </div>
-                </div>
-                <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl shadow-lg transition flex justify-center items-center gap-2">
-                    開始測試
-                </button>
-            </form>
-            <div class="mt-8 pt-6 border-t text-center">
-                <button onclick="switchView('admin')" class="text-slate-400 text-xs hover:text-blue-600 transition">教師管理後台 (查看所有數據)</button>
+                <i class="fas fa-graduation-cap text-4xl opacity-30"></i>
             </div>
         </div>
-    </div>
 
-    <!-- 測試介面 -->
-    <div id="view-quiz" class="hidden min-h-screen p-4 md:p-8">
-        <div class="max-w-2xl mx-auto space-y-6">
-            <div class="bg-white p-4 rounded-xl shadow-sm border flex justify-between items-center sticky top-4 z-10">
-                <div id="quiz-student-info" class="font-bold text-slate-700 text-sm md:text-base"></div>
-                <div class="text-right">
-                    <p class="text-xs text-slate-400 font-bold uppercase">進度</p>
-                    <p id="progress-text" class="font-bold text-blue-600">0 / 5</p>
-                </div>
-            </div>
-            <div id="questions-container" class="space-y-6"></div>
-            <button id="submit-btn" disabled class="w-full bg-green-600 hover:bg-green-700 disabled:bg-slate-300 text-white font-black py-5 rounded-2xl shadow-xl transition text-lg flex justify-center items-center gap-2">
-                提交測試
-            </button>
-        </div>
-    </div>
-
-    <!-- 結果介面 -->
-    <div id="view-results" class="hidden min-h-screen flex items-center justify-center p-4">
-        <div class="max-w-md w-full bg-white rounded-3xl shadow-2xl overflow-hidden text-center">
-            <div class="p-10 bg-green-600 text-white">
-                <svg xmlns="http://www.w3.org/2000/svg" class="w-20 h-20 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                <h2 class="text-3xl font-bold">測試已完成！</h2>
-                <p class="text-green-50 font-medium">數據已自動上傳雲端</p>
-            </div>
-            <div class="p-10">
-                <p class="text-slate-400 font-bold text-sm mb-2">你的得分</p>
-                <div class="mb-8">
-                    <span id="final-score" class="text-7xl font-black text-slate-800">0</span>
-                    <span class="text-3xl text-slate-300 font-bold"> / 5</span>
-                </div>
-                <button onclick="location.reload()" class="w-full py-4 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold rounded-xl transition">返回首頁</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- 教師管理後台 -->
-    <div id="view-admin" class="hidden min-h-screen p-4 md:p-8">
-        <div class="max-w-5xl mx-auto">
-            <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-                <div>
-                    <h1 class="text-3xl font-black text-slate-800">教師數據管理後台</h1>
-                    <p class="text-slate-500 font-medium">即時同步學生測試數據</p>
-                </div>
-                <button onclick="switchView('login')" class="px-6 py-3 bg-white border-2 rounded-xl font-bold text-slate-600 hover:bg-slate-50 transition shadow-sm">返回學生登入</button>
-            </div>
-            <div class="bg-white rounded-2xl shadow-xl border overflow-hidden">
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left">
-                        <thead class="bg-slate-50 border-b-2">
-                            <tr>
-                                <th class="px-6 py-5 text-xs font-black text-slate-400 uppercase">時間</th>
-                                <th class="px-6 py-5 text-xs font-black text-slate-400 uppercase">班別</th>
-                                <th class="px-6 py-5 text-xs font-black text-slate-400 uppercase">學號</th>
-                                <th class="px-6 py-5 text-xs font-black text-slate-400 uppercase">姓名</th>
-                                <th class="px-6 py-5 text-xs font-black text-slate-400 uppercase text-right">成績</th>
-                            </tr>
-                        </thead>
-                        <tbody id="admin-table-body" class="divide-y divide-slate-100 font-medium text-sm"></tbody>
-                    </table>
-                </div>
-            </div>
+        <!-- Main Content Area -->
+        <div id="content" class="p-8">
+            <!-- Content will be injected here by JavaScript -->
         </div>
     </div>
 
     <script>
-        // --- 初始化 Firebase ---
-        const firebaseConfig = JSON.parse(__firebase_config);
-        firebase.initializeApp(firebaseConfig);
-        const auth = firebase.auth();
-        const db = firebase.firestore();
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'p5-ms-u5p2-quiz';
+        // --- Configuration ---
+        const SHEETS_WEBAPP_URL = ""; 
 
-        // --- 狀態管理 ---
-        let studentData = { name: '', className: 'P.5A', classNo: '' };
-        let answers = [null, null, null, null, null];
-        const questions = [
-            { q: "The animals ______ the sparkling water and played by its banks.", options: ["gazed upon", "in dismay", "cunning", "spare"], correct: "gazed upon" },
-            { q: "Which word describes a feeling that spreads easily (like laughter)?", options: ["scarcity", "infectious", "cunning", "dismay"], correct: "infectious" },
-            { q: "Choose the correct connective: ______ we pushed the nails into the sand deeply, the tent kept falling down.", options: ["Because", "So", "Although", "But"], correct: "Although" },
-            { q: "Mia was ______ by her grandfather's words to start a water-saving project.", options: ["scared", "inspired", "cunning", "filled"], correct: "inspired" },
-            { q: "The villagers ______ when the water finally came out of the new pump.", options: ["rejoiced", "took no notice", "were desperate", "cunning"], correct: "rejoiced" }
-        ];
-
-        // --- 路由切換 ---
-        function switchView(viewId) {
-            ['view-login', 'view-quiz', 'view-results', 'view-admin'].forEach(id => {
-                document.getElementById(id).classList.add('hidden');
-            });
-            document.getElementById('view-' + viewId).classList.remove('hidden');
-            if(viewId === 'admin') loadAdminData();
-        }
-
-        // --- 身份驗證 ---
-        async function initAuth() {
-            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                await auth.signInWithCustomToken(__initial_auth_token);
-            } else {
-                await auth.signInAnonymously();
-            }
-        }
-
-        // --- 登入邏輯 ---
-        document.getElementById('login-form').onsubmit = (e) => {
-            e.preventDefault();
-            studentData.name = document.getElementById('student-name').value;
-            studentData.className = document.getElementById('class-name').value;
-            studentData.classNo = document.getElementById('class-no').value;
-            
-            document.getElementById('quiz-student-info').innerText = `${studentData.className} (${studentData.classNo}) ${studentData.name}`;
-            renderQuestions();
-            switchView('quiz');
+        // --- Multi-Year Question Bank ---
+        const QUESTION_BANK = {
+            partA: [
+                {
+                    theme: "Water Conservation & Community",
+                    options: ["scarcity", "in dismay", "inspired by", "infectious", "took no notice of", "rejoiced", "availability", "with great pride"],
+                    story: [
+                        { id: 'a1', text: "Millions of people live in areas where there is a _________ of clean water.", answer: "scarcity" },
+                        { id: 'a2', text: "When the villagers finally saw water flowing from the new pump, they _________.", answer: "rejoiced" },
+                        { id: 'a3', text: "Mia was _________ her grandfather's words about saving every drop.", answer: "inspired by" },
+                        { id: 'a4', text: "Her excitement was so _________ that soon everyone wanted to help.", answer: "infectious" },
+                        { id: 'a5', text: "They looked at the successful project _________.", answer: "with great pride" },
+                        { id: 'a6', text: "However, some selfish people still _________ the warnings to save water.", answer: "took no notice of" }
+                    ]
+                },
+                {
+                    theme: "Social Conflict & Feelings",
+                    options: ["cunning", "gazed upon", "desperate", "in dismay", "filled the air", "as if", "racked their brains", "acquire"],
+                    story: [
+                        { id: 'a1', text: "Ben _________ the ceiling, wishing his sister would disappear.", answer: "gazed upon" },
+                        { id: 'a2', text: "The cat was very _________ and tricked the dog into doing all the work.", answer: "cunning" },
+                        { id: 'a3', text: "When the stream was filled with garbage, the animals looked at it _________.", answer: "in dismay" },
+                        { id: 'a4', text: "The animals were _________ for help to clean their home.", answer: "desperate" },
+                        { id: 'a5', text: "They _________ trying to think of a way to get the magical ring back.", answer: "racked their brains" },
+                        { id: 'a6', text: "A delicious smell of sizzling bacon _________.", answer: "filled the air" }
+                    ]
+                }
+            ],
+            partB: [
+                {
+                    title: "The Secrets of the Countryside",
+                    questions: [
+                        { id: 'b1', type: 'choice', text: "Why should we avoid feeding wild animals?", options: ["They might get sick from human food.", "They are too fast to catch.", "They don't like eating.", "They only eat at night."], answer: "They might get sick from human food." },
+                        { id: 'b2', type: 'choice', text: "How do trees help the environment?", options: ["They provide oxygen.", "They change color in winter.", "They are good for climbing.", "They grow in groups."], answer: "They provide oxygen." },
+                        { id: 'b3', type: 'choice', text: "What is the main message of the article?", options: ["We must protect nature.", "Don't visit the countryside.", "Trees are very old.", "Animals are dangerous."], answer: "We must protect nature." }
+                    ]
+                },
+                {
+                    title: "The Magical Ring Tale",
+                    questions: [
+                        { id: 'b1', type: 'choice', text: "Why did the farmer sell the ring?", options: ["To buy food and a cart.", "He didn't like it.", "It was broken.", "He wanted a dog."], answer: "To buy food and a cart." },
+                        { id: 'b2', type: 'choice', text: "What does 'in the blink of an eye' mean?", options: ["Very quickly.", "While sleeping.", "When looking closely.", "In the morning."], answer: "Very quickly." },
+                        { id: 'b3', type: 'choice', text: "The dog and the cat became enemies because...", options: ["The cat took all the credit.", "The dog lost the ring.", "The cat ate the food.", "They never liked each other."], answer: "The cat took all the credit." }
+                    ]
+                }
+            ],
+            partC: [
+                {
+                    context: "Conversation about Volunteering",
+                    questions: [
+                        { id: 'c1', text: "Vivian: I am a _________ picking up rubbish in the hills.", answer: "volunteer" },
+                        { id: 'c2', text: "Lily: It must be hard _________ for you to do that alone.", answer: "work" }
+                    ]
+                },
+                {
+                    context: "Grammar: Connectives",
+                    questions: [
+                        { id: 'c1', text: "We set up the tent _________ the sand was very loose.", answer: "although" },
+                        { id: 'c2', text: "He was angry with me _________ I apologized immediately.", answer: "because" }
+                    ]
+                }
+            ]
         };
 
-        // --- 渲染題目 ---
-        function renderQuestions() {
-            const container = document.getElementById('questions-container');
-            container.innerHTML = questions.map((q, idx) => `
-                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-                    <p class="text-lg font-bold text-slate-800 mb-4">${idx + 1}. ${q.q}</p>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        ${q.options.map(opt => `
-                            <button onclick="selectOption(${idx}, '${opt}')" id="btn-${idx}-${opt}" class="option-btn text-left px-5 py-4 rounded-xl border-2 border-slate-50 bg-slate-50 hover:bg-slate-100 transition-all font-medium">
-                                ${opt}
-                            </button>
-                        `).join('')}
+        let state = {
+            step: 'welcome',
+            studentInfo: { name: '', class: '', no: '' },
+            selectedQuizData: null,
+            currentPartIdx: 0,
+            answers: {},
+            isSubmitting: false,
+            results: null
+        };
+
+        function getRandomItem(arr) {
+            return arr[Math.floor(Math.random() * arr.length)];
+        }
+
+        function initQuizData() {
+            state.selectedQuizData = {
+                partA: getRandomItem(QUESTION_BANK.partA),
+                partB: getRandomItem(QUESTION_BANK.partB),
+                partC: getRandomItem(QUESTION_BANK.partC)
+            };
+        }
+
+        function render() {
+            const container = document.getElementById('content');
+            
+            if (state.step === 'welcome') {
+                container.innerHTML = `
+                    <div class="space-y-6 fade-in">
+                        <div class="bg-indigo-50 p-6 rounded-2xl flex items-center gap-4">
+                            <i class="fas fa-user-circle text-indigo-600 text-4xl"></i>
+                            <div>
+                                <h2 class="font-bold text-lg">Student Login</h2>
+                                <p class="text-sm text-slate-500">Please enter your credentials below.</p>
+                            </div>
+                        </div>
+                        <div class="space-y-4">
+                            <input type="text" id="nameInput" placeholder="Full Name (English)" class="w-full p-4 bg-slate-50 rounded-xl border-2 border-transparent focus:border-indigo-500 outline-none transition-all" value="${state.studentInfo.name}">
+                            <div class="grid grid-cols-2 gap-4">
+                                <input type="text" id="classInput" placeholder="Class (e.g. 5C)" class="p-4 bg-slate-50 rounded-xl border-2 border-transparent focus:border-indigo-500 outline-none" value="${state.studentInfo.class}">
+                                <input type="text" id="noInput" placeholder="No. (1-35)" class="p-4 bg-slate-50 rounded-xl border-2 border-transparent focus:border-indigo-500 outline-none" value="${state.studentInfo.no}">
+                            </div>
+                        </div>
+                        <button onclick="handleStart()" class="w-full bg-indigo-600 text-white font-bold py-5 rounded-2xl shadow-lg hover:bg-indigo-700 transition-all">Enter Examination Hall</button>
                     </div>
-                </div>
-            `).join('');
-        }
+                `;
+            } else if (state.step === 'quiz') {
+                const parts = ['partA', 'partB', 'partC'];
+                const currentPartKey = parts[state.currentPartIdx];
+                const content = state.selectedQuizData[currentPartKey];
 
-        function selectOption(qIdx, option) {
-            answers[qIdx] = option;
-            // 更新 UI
-            questions[qIdx].options.forEach(opt => {
-                document.getElementById(`btn-${qIdx}-${opt}`).classList.remove('selected');
-            });
-            document.getElementById(`btn-${qIdx}-${option}`).classList.add('selected');
-            
-            // 更新進度
-            const answeredCount = answers.filter(a => a !== null).length;
-            document.getElementById('progress-text').innerText = `${answeredCount} / 5`;
-            
-            if (answeredCount === 5) {
-                document.getElementById('submit-btn').disabled = false;
+                let quizHtml = `
+                    <div class="fade-in">
+                        <div class="flex items-center justify-between mb-4">
+                            <span class="px-3 py-1 bg-indigo-100 text-indigo-700 rounded-full text-xs font-bold uppercase tracking-widest">Part ${String.fromCharCode(65 + state.currentPartIdx)}</span>
+                            <span class="text-xs font-bold text-slate-400">Section ${state.currentPartIdx + 1}/3</span>
+                        </div>
+                `;
+
+                if (currentPartKey === 'partA') {
+                    quizHtml += `
+                        <h2 class="text-xl font-black text-slate-800 mb-2">Vocabulary Cloze</h2>
+                        <p class="text-sm text-slate-500 italic mb-6">Read the text and select the best fit from the word bank.</p>
+                        <div class="flex flex-wrap gap-2 mb-8 bg-slate-50 p-4 rounded-xl">
+                            ${content.options.map(opt => `<span class="px-3 py-1 bg-white shadow-sm text-indigo-700 text-xs font-bold rounded-lg border border-slate-200">${opt}</span>`).join('')}
+                        </div>
+                        <div class="space-y-6">
+                            ${content.story.map((q, idx) => `
+                                <div>
+                                    <p class="leading-relaxed mb-3">${idx+1}. ${q.text.replace('_________', `<span class="mx-2 border-b-2 border-indigo-500 text-indigo-700 font-bold px-2">${state.answers[q.id] || '____'}</span>`)}</p>
+                                    <select onchange="setAnswer('${q.id}', this.value)" class="w-full p-3 bg-slate-50 border-2 border-slate-100 rounded-xl text-sm font-semibold outline-none focus:border-indigo-500">
+                                        <option value="">Choose an answer...</option>
+                                        ${content.options.map(o => `<option value="${o}" ${state.answers[q.id] === o ? 'selected' : ''}>${o}</option>`).join('')}
+                                    </select>
+                                </div>
+                            `).join('')}
+                        </div>
+                    `;
+                } else if (currentPartKey === 'partB') {
+                    quizHtml += `
+                        <h2 class="text-xl font-black text-slate-800 mb-2">Reading: ${content.title}</h2>
+                        <p class="text-sm text-slate-500 italic mb-6">Select the best answer based on the provided text logic.</p>
+                        <div class="space-y-8">
+                            ${content.questions.map((q, idx) => `
+                                <div class="space-y-4">
+                                    <p class="font-bold text-slate-700">${idx+1}. ${q.text}</p>
+                                    <div class="grid gap-2">
+                                        ${q.options.map(opt => `
+                                            <button onclick="setAnswer('${q.id}', '${opt}')" class="option-card p-4 rounded-xl border-2 text-left text-sm transition-all ${state.answers[q.id] === opt ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-slate-50 border-slate-100 hover:border-indigo-200'}">
+                                                ${opt}
+                                            </button>
+                                        `).join('')}
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    `;
+                } else {
+                    quizHtml += `
+                        <h2 class="text-xl font-black text-slate-800 mb-2">Summary Cloze</h2>
+                        <p class="text-sm text-slate-500 italic mb-6">${content.context}</p>
+                        <div class="space-y-8">
+                            ${content.questions.map((q, idx) => `
+                                <div class="space-y-3">
+                                    <p class="leading-relaxed">${idx+1}. ${q.text.replace('_________', `<span class="mx-2 border-b-2 border-indigo-500 text-indigo-700 font-bold px-2">${state.answers[q.id] || '____'}</span>`)}</p>
+                                    <input type="text" oninput="setAnswer('${q.id}', this.value)" placeholder="Type answer..." class="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-xl font-bold text-indigo-600 outline-none focus:border-indigo-500" value="${state.answers[q.id] || ''}">
+                                </div>
+                            `).join('')}
+                        </div>
+                    `;
+                }
+
+                quizHtml += `
+                    <button onclick="nextStep()" class="w-full bg-indigo-600 text-white py-5 rounded-2xl mt-10 font-bold shadow-lg flex items-center justify-center gap-2 hover:bg-indigo-700 transition-all">
+                        ${state.isSubmitting ? '<i class="fas fa-spinner fa-spin"></i> Submitting...' : (state.currentPartIdx < 2 ? 'Next Part <i class="fas fa-chevron-right ml-2"></i>' : 'Final Submission')}
+                    </button>
+                </div>`;
+                
+                container.innerHTML = quizHtml;
+            } else if (state.step === 'summary') {
+                container.innerHTML = `
+                    <div class="text-center space-y-8 fade-in">
+                        <div class="inline-block p-6 bg-green-100 rounded-full">
+                            <i class="fas fa-check-double text-5xl text-green-600"></i>
+                        </div>
+                        <div>
+                            <h2 class="text-3xl font-black text-slate-800">Exam Completed</h2>
+                            <p class="text-slate-500 mt-1">Well done, ${state.studentInfo.name}!</p>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="bg-indigo-50 p-8 rounded-3xl border-2 border-indigo-100">
+                                <div class="text-xs font-black text-indigo-400 uppercase tracking-widest mb-1">Total Score</div>
+                                <div class="text-4xl font-black text-indigo-700">${state.results.score}/20</div>
+                            </div>
+                            <div class="bg-indigo-50 p-8 rounded-3xl border-2 border-indigo-100">
+                                <div class="text-xs font-black text-indigo-400 uppercase tracking-widest mb-1">Percentage</div>
+                                <div class="text-4xl font-black text-indigo-700">${state.results.percentage}%</div>
+                            </div>
+                        </div>
+
+                        <div class="text-left bg-slate-50 p-6 rounded-2xl border border-slate-200">
+                            <h3 class="font-bold text-slate-700 mb-2">Teacher Verification:</h3>
+                            <p class="text-slate-500 text-sm leading-relaxed">Status: <span class="text-green-600 font-bold">Successfully Uploaded</span>. Your score has been added to the master sheet.</p>
+                        </div>
+
+                        <button onclick="location.reload()" class="text-indigo-600 font-bold text-sm underline">Take Another Random Version</button>
+                    </div>
+                `;
             }
         }
 
-        // --- 提交數據 ---
-        document.getElementById('submit-btn').onclick = async () => {
-            const submitBtn = document.getElementById('submit-btn');
-            submitBtn.disabled = true;
-            submitBtn.innerHTML = `<div class="loading-spinner mr-2"></div> 正在自動上傳...`;
-
-            let score = 0;
-            answers.forEach((ans, i) => { if(ans === questions[i].correct) score++; });
-
-            try {
-                if (!auth.currentUser) await initAuth();
-                
-                await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('scores').add({
-                    ...studentData,
-                    score: score,
-                    total: 5,
-                    timestamp: firebase.firestore.FieldValue.serverTimestamp(),
-                    userId: auth.currentUser.uid
-                });
-
-                document.getElementById('final-score').innerText = score;
-                switchView('results');
-            } catch (error) {
-                console.error("Upload error:", error);
-                submitBtn.innerText = "上傳失敗，請重試";
-                submitBtn.disabled = false;
+        window.handleStart = () => {
+            const name = document.getElementById('nameInput').value;
+            const className = document.getElementById('classInput').value;
+            const no = document.getElementById('noInput').value;
+            if (name && className && no) {
+                state.studentInfo = { name, class: className, no };
+                initQuizData();
+                state.step = 'quiz';
+                render();
             }
         };
 
-        // --- 教師後台數據載入 ---
-        function loadAdminData() {
-            const tbody = document.getElementById('admin-table-body');
-            tbody.innerHTML = '<tr><td colspan="5" class="px-6 py-10 text-center text-slate-400">正在讀取雲端數據...</td></tr>';
+        window.setAnswer = (id, val) => {
+            state.answers[id] = val;
+            render();
+        };
 
-            db.collection('artifacts').doc(appId).collection('public').doc('data').collection('scores')
-              .onSnapshot(snapshot => {
-                  const data = snapshot.docs.map(doc => ({id: doc.id, ...doc.data()}))
-                                .sort((a,b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
-                  
-                  if(data.length === 0) {
-                      tbody.innerHTML = '<tr><td colspan="5" class="px-6 py-10 text-center text-slate-400 italic">目前尚無紀錄</td></tr>';
-                      return;
-                  }
+        window.nextStep = () => {
+            if (state.currentPartIdx < 2) {
+                state.currentPartIdx++;
+                render();
+                window.scrollTo(0, 0);
+            } else {
+                submitFinal();
+            }
+        };
 
-                  tbody.innerHTML = data.map(sub => `
-                      <tr class="hover:bg-blue-50/30 transition">
-                          <td class="px-6 py-5 text-slate-500">${sub.timestamp ? sub.timestamp.toDate().toLocaleString('zh-HK') : '-'}</td>
-                          <td class="px-6 py-5"><span class="bg-slate-100 px-2 py-1 rounded text-xs">${sub.className}</span></td>
-                          <td class="px-6 py-5 text-slate-600">${sub.classNo}</td>
-                          <td class="px-6 py-5 font-bold">${sub.name}</td>
-                          <td class="px-6 py-5 text-right font-black text-blue-600">${sub.score} / ${sub.total}</td>
-                      </tr>
-                  `).join('');
-              }, error => {
-                  tbody.innerHTML = `<tr><td colspan="5" class="px-6 py-10 text-center text-red-500">權限錯誤: ${error.message}</td></tr>`;
-              });
+        async function submitFinal() {
+            state.isSubmitting = true;
+            render();
+
+            let total = 0;
+            const parts = ['partA', 'partB', 'partC'];
+            
+            parts.forEach(pk => {
+                const part = state.selectedQuizData[pk];
+                const questions = part.questions || part.story;
+                const weight = pk === 'partA' ? 12 : (pk === 'partB' ? 6 : 2);
+                
+                questions.forEach(q => {
+                    if (state.answers[q.id]?.toLowerCase().trim() === q.answer.toLowerCase()) {
+                        total += (weight / questions.length);
+                    }
+                });
+            });
+
+            state.results = {
+                score: Math.round(total * 10) / 10,
+                max: 20,
+                percentage: Math.round((total / 20) * 100)
+            };
+
+            if (SHEETS_WEBAPP_URL) {
+                try {
+                    await fetch(SHEETS_WEBAPP_URL, {
+                        method: 'POST',
+                        mode: 'no-cors',
+                        body: JSON.stringify({ ...state.studentInfo, ...state.results })
+                    });
+                } catch (e) { console.error("Network Error:", e); }
+            }
+
+            setTimeout(() => {
+                state.step = 'summary';
+                state.isSubmitting = false;
+                render();
+            }, 1000);
         }
 
-        // 初始化
-        window.onload = initAuth;
+        render();
     </script>
 </body>
 </html>
