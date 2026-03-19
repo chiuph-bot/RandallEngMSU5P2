@@ -1,406 +1,278 @@
-import React, { useState, useEffect } from 'react';
-import { initializeApp } from 'firebase/app';
-import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from 'firebase/auth';
-import { getFirestore, collection, addDoc, onSnapshot, serverTimestamp } from 'firebase/firestore';
-import { User, GraduationCap, Hash, Send, ClipboardList, CheckCircle, AlertCircle, BarChart3, Layout } from 'lucide-react';
-
-// Firebase 配置
-const firebaseConfig = JSON.parse(__firebase_config);
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
-const appId = typeof __app_id !== 'undefined' ? __app_id : 'p5-ms-u5p2-quiz';
-
-const App = () => {
-  const [user, setUser] = useState(null);
-  const [view, setView] = useState('login'); // 'login', 'quiz', 'results', 'admin'
-  const [studentInfo, setStudentInfo] = useState({ name: '', className: 'P.5A', classNo: '' });
-  const [score, setScore] = useState(0);
-  const [submissions, setSubmissions] = useState([]);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [authStatus, setAuthStatus] = useState('initializing');
-
-  // 初始化身份驗證 (遵守 Rule 3)
-  useEffect(() => {
-    const initAuth = async () => {
-      try {
-        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-          await signInWithCustomToken(auth, __initial_auth_token);
-        } else {
-          await signInAnonymously(auth);
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>P.5 English Quiz - Module Summary Unit 5 Part 2</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore-compat.js"></script>
+    <style>
+        .option-btn.selected {
+            border-color: #2563eb;
+            background-color: #eff6ff;
+            color: #1e40af;
+            box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.05);
         }
-      } catch (error) {
-        console.error("身份驗證錯誤:", error);
-      }
-    };
-    initAuth();
-    const unsubscribe = onAuthStateChanged(auth, (u) => {
-      setUser(u);
-      setAuthStatus(u ? 'authenticated' : 'failed');
-    });
-    return () => unsubscribe();
-  }, []);
+        .loading-spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #3498db;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen text-slate-800 font-sans">
 
-  // 獲取後台數據 (遵守 Rule 1 & 2)
-  useEffect(() => {
-    if (!user || view !== 'admin') return;
-
-    const scoresCol = collection(db, 'artifacts', appId, 'public', 'data', 'scores');
-    
-    const unsubscribe = onSnapshot(
-      scoresCol, 
-      (snapshot) => {
-        const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        // 在記憶體中排序（避免需要建立複合索引）
-        const sortedDocs = docs.sort((a, b) => {
-          const timeA = a.timestamp?.seconds || 0;
-          const timeB = b.timestamp?.seconds || 0;
-          return timeB - timeA;
-        });
-        setSubmissions(sortedDocs);
-      }, 
-      (error) => {
-        console.error("Firestore 權限或查詢錯誤:", error);
-      }
-    );
-
-    return () => unsubscribe();
-  }, [user, view]);
-
-  const handleStartQuiz = (e) => {
-    e.preventDefault();
-    if (studentInfo.name && studentInfo.classNo) {
-      setView('quiz');
-    }
-  };
-
-  // 自動上傳數據至雲端
-  const submitToCloud = async (finalScore) => {
-    if (!user) return;
-
-    setIsSubmitting(true);
-    try {
-      await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'scores'), {
-        ...studentInfo,
-        score: finalScore,
-        total: 5,
-        timestamp: serverTimestamp(),
-        userId: user.uid
-      });
-      setView('results');
-    } catch (error) {
-      console.error("數據上傳失敗:", error);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  // 測試題目 (根據 U5P2 內容)
-  const questions = [
-    {
-      q: "Fill in the blank: The animals ______ the sparkling water and played by its banks.",
-      options: ["gazed upon", "in dismay", "cunning", "spare"],
-      correct: "gazed upon"
-    },
-    {
-      q: "Which word describes a feeling that spreads easily among people (like laughter)?",
-      options: ["scarcity", "infectious", "cunning", "dismay"],
-      correct: "infectious"
-    },
-    {
-      q: "Choose the correct connective: ______ we pushed the nails into the sand deeply, the tent kept falling down.",
-      options: ["Because", "So", "Although", "But"],
-      correct: "Although"
-    },
-    {
-      q: "Mia was ______ by her grandfather's words to start a water-saving project.",
-      options: ["scared", "inspired", "cunning", "filled"],
-      correct: "inspired"
-    },
-    {
-      q: "The villagers ______ when the water finally came out of the new pump.",
-      options: ["rejoiced", "took no notice", "were desperate", "cunning"],
-      correct: "rejoiced"
-    }
-  ];
-
-  const [currentAnswers, setCurrentAnswers] = useState(new Array(questions.length).fill(null));
-
-  const handleFinish = () => {
-    let s = 0;
-    currentAnswers.forEach((ans, idx) => {
-      if (ans === questions[idx].correct) s++;
-    });
-    setScore(s);
-    submitToCloud(s);
-  };
-
-  if (authStatus === 'initializing') {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
-
-  // 登入頁面 (輸入個人資料)
-  if (view === 'login') {
-    return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-        <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8 border border-slate-100">
-          <div className="text-center mb-8">
-            <div className="inline-flex p-3 bg-blue-100 rounded-full text-blue-600 mb-4">
-              <ClipboardList size={32} />
+    <!-- 登入介面 -->
+    <div id="view-login" class="min-h-screen flex items-center justify-center p-4">
+        <div class="max-w-md w-full bg-white rounded-2xl shadow-xl p-8 border border-slate-100">
+            <div class="text-center mb-8">
+                <div class="inline-flex p-3 bg-blue-100 rounded-full text-blue-600 mb-4">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg>
+                </div>
+                <h1 class="text-2xl font-bold">P.5 英文單元測驗</h1>
+                <p class="text-slate-500 font-medium">Unit 5 Part 2 - 詞彙與語法</p>
             </div>
-            <h1 className="text-2xl font-bold text-slate-800">P.5 英文單元測驗</h1>
-            <p className="text-slate-500 font-medium">Unit 5 Part 2 - 詞彙與語法</p>
-          </div>
-
-          <form onSubmit={handleStartQuiz} className="space-y-5">
-            <div>
-              <label className="block text-sm font-bold text-slate-700 mb-1 flex items-center gap-2">
-                <User size={16} className="text-blue-500" /> 學生姓名
-              </label>
-              <input 
-                required
-                className="w-full px-4 py-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none transition"
-                placeholder="請輸入完整姓名"
-                value={studentInfo.name}
-                onChange={e => setStudentInfo({...studentInfo, name: e.target.value})}
-              />
+            <form id="login-form" class="space-y-5">
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 mb-1">學生姓名</label>
+                    <input type="text" id="student-name" required class="w-full px-4 py-3 rounded-lg border border-slate-200 outline-none focus:ring-2 focus:ring-blue-500 transition" placeholder="請輸入姓名">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-1">班別</label>
+                        <select id="class-name" class="w-full px-4 py-3 rounded-lg border border-slate-200 bg-white">
+                            <option>P.5A</option><option>P.5B</option><option>P.5C</option><option>P.5D</option><option>P.5E</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-1">學號</label>
+                        <input type="number" id="class-no" required class="w-full px-4 py-3 rounded-lg border border-slate-200 outline-none focus:ring-2 focus:ring-blue-500" placeholder="例如: 15">
+                    </div>
+                </div>
+                <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl shadow-lg transition flex justify-center items-center gap-2">
+                    開始測試
+                </button>
+            </form>
+            <div class="mt-8 pt-6 border-t text-center">
+                <button onclick="switchView('admin')" class="text-slate-400 text-xs hover:text-blue-600 transition">教師管理後台 (查看所有數據)</button>
             </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-bold text-slate-700 mb-1 flex items-center gap-2">
-                  <GraduationCap size={16} className="text-blue-500" /> 班別
-                </label>
-                <select 
-                  className="w-full px-4 py-3 rounded-lg border border-slate-200 bg-white"
-                  value={studentInfo.className}
-                  onChange={e => setStudentInfo({...studentInfo, className: e.target.value})}
-                >
-                  <option>P.5A</option>
-                  <option>P.5B</option>
-                  <option>P.5C</option>
-                  <option>P.5D</option>
-                  <option>P.5E</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-bold text-slate-700 mb-1 flex items-center gap-2">
-                  <Hash size={16} className="text-blue-500" /> 學號
-                </label>
-                <input 
-                  required
-                  type="number"
-                  className="w-full px-4 py-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none"
-                  placeholder="例如: 15"
-                  value={studentInfo.classNo}
-                  onChange={e => setStudentInfo({...studentInfo, classNo: e.target.value})}
-                />
-              </div>
-            </div>
-
-            <button 
-              type="submit"
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl transition shadow-lg shadow-blue-200 flex items-center justify-center gap-2"
-            >
-              開始測試 <Send size={18} />
-            </button>
-          </form>
-
-          <div className="mt-8 pt-6 border-t border-slate-100">
-            <button 
-              onClick={() => setView('admin')}
-              className="w-full text-slate-400 text-xs hover:text-blue-600 flex items-center justify-center gap-2 transition"
-            >
-              <BarChart3 size={14} /> 教師管理後台 (查看所有數據)
-            </button>
-          </div>
         </div>
-      </div>
-    );
-  }
+    </div>
 
-  // 測試中頁面
-  if (view === 'quiz') {
-    return (
-      <div className="min-h-screen bg-slate-50 p-4 md:p-8">
-        <div className="max-w-2xl mx-auto space-y-6">
-          <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex justify-between items-center sticky top-4 z-10">
-            <div>
-              <p className="text-xs text-slate-400 font-bold tracking-wider uppercase">考生資訊</p>
-              <p className="font-bold text-slate-700">{studentInfo.className} ({studentInfo.classNo}) {studentInfo.name}</p>
+    <!-- 測試介面 -->
+    <div id="view-quiz" class="hidden min-h-screen p-4 md:p-8">
+        <div class="max-w-2xl mx-auto space-y-6">
+            <div class="bg-white p-4 rounded-xl shadow-sm border flex justify-between items-center sticky top-4 z-10">
+                <div id="quiz-student-info" class="font-bold text-slate-700 text-sm md:text-base"></div>
+                <div class="text-right">
+                    <p class="text-xs text-slate-400 font-bold uppercase">進度</p>
+                    <p id="progress-text" class="font-bold text-blue-600">0 / 5</p>
+                </div>
             </div>
-            <div className="text-right">
-              <p className="text-xs text-slate-400 font-bold tracking-wider uppercase">完成進度</p>
-              <p className="font-bold text-blue-600">
-                {currentAnswers.filter(a => a !== null).length} / {questions.length}
-              </p>
-            </div>
-          </div>
-
-          {questions.map((q, idx) => (
-            <div key={idx} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-              <p className="text-lg font-bold text-slate-800 mb-4">{idx + 1}. {q.q}</p>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {q.options.map(opt => (
-                  <button
-                    key={opt}
-                    onClick={() => {
-                      const newAns = [...currentAnswers];
-                      newAns[idx] = opt;
-                      setCurrentAnswers(newAns);
-                    }}
-                    className={`text-left px-5 py-4 rounded-xl border-2 transition-all font-medium ${
-                      currentAnswers[idx] === opt 
-                        ? 'border-blue-600 bg-blue-50 text-blue-700 shadow-inner' 
-                        : 'border-slate-50 bg-slate-50 hover:bg-slate-100 text-slate-600'
-                    }`}
-                  >
-                    {opt}
-                  </button>
-                ))}
-              </div>
-            </div>
-          ))}
-
-          <button
-            disabled={currentAnswers.some(a => a === null) || isSubmitting}
-            onClick={handleFinish}
-            className="w-full bg-green-600 hover:bg-green-700 disabled:bg-slate-300 text-white font-black py-5 rounded-2xl transition shadow-xl flex items-center justify-center gap-2 text-lg"
-          >
-            {isSubmitting ? '正在自動上傳數據...' : '完成並提交測試'} <CheckCircle size={22} />
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // 結果頁面
-  if (view === 'results') {
-    return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-        <div className="max-w-md w-full bg-white rounded-3xl shadow-2xl overflow-hidden text-center">
-          <div className="p-10 bg-green-600 text-white">
-            <CheckCircle size={80} className="mx-auto mb-4" />
-            <h2 className="text-3xl font-bold">測試已完成！</h2>
-            <p className="text-green-50 點 font-medium">數據已成功自動上傳雲端</p>
-          </div>
-          <div className="p-10">
-            <p className="text-slate-400 font-bold text-sm mb-2">你的得分</p>
-            <div className="mb-8">
-              <span className="text-7xl font-black text-slate-800">{score}</span>
-              <span className="text-3xl text-slate-300 font-bold"> / {questions.length}</span>
-            </div>
-            <p className="text-slate-600 mb-10 font-medium">老師已可以在後台查閱你的表現。</p>
-            <button 
-              onClick={() => window.location.reload()}
-              className="w-full py-4 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold rounded-xl transition"
-            >
-              返回首頁
+            <div id="questions-container" class="space-y-6"></div>
+            <button id="submit-btn" disabled class="w-full bg-green-600 hover:bg-green-700 disabled:bg-slate-300 text-white font-black py-5 rounded-2xl shadow-xl transition text-lg flex justify-center items-center gap-2">
+                提交測試
             </button>
-          </div>
         </div>
-      </div>
-    );
-  }
+    </div>
 
-  // 教師管理後台 (類似 Google Sheets)
-  if (view === 'admin') {
-    return (
-      <div className="min-h-screen bg-slate-50 p-4 md:p-8">
-        <div className="max-w-5xl mx-auto">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-            <div>
-              <h1 className="text-3xl font-black text-slate-800 flex items-center gap-3">
-                <Layout className="text-blue-600" /> 教師數據管理後台
-              </h1>
-              <p className="text-slate-500 font-medium mt-1">即時同步學生測試數據，協助評估學習表現</p>
+    <!-- 結果介面 -->
+    <div id="view-results" class="hidden min-h-screen flex items-center justify-center p-4">
+        <div class="max-w-md w-full bg-white rounded-3xl shadow-2xl overflow-hidden text-center">
+            <div class="p-10 bg-green-600 text-white">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-20 h-20 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                <h2 class="text-3xl font-bold">測試已完成！</h2>
+                <p class="text-green-50 font-medium">數據已自動上傳雲端</p>
             </div>
-            <button 
-              onClick={() => setView('login')}
-              className="px-6 py-3 bg-white border-2 border-slate-200 rounded-xl font-bold text-slate-600 hover:bg-slate-50 transition shadow-sm"
-            >
-              返回學生登入頁面
-            </button>
-          </div>
+            <div class="p-10">
+                <p class="text-slate-400 font-bold text-sm mb-2">你的得分</p>
+                <div class="mb-8">
+                    <span id="final-score" class="text-7xl font-black text-slate-800">0</span>
+                    <span class="text-3xl text-slate-300 font-bold"> / 5</span>
+                </div>
+                <button onclick="location.reload()" class="w-full py-4 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold rounded-xl transition">返回首頁</button>
+            </div>
+        </div>
+    </div>
 
-          <div className="bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left">
-                <thead className="bg-slate-50 border-b-2 border-slate-100">
-                  <tr>
-                    <th className="px-6 py-5 text-xs font-black text-slate-400 uppercase tracking-widest">提交時間</th>
-                    <th className="px-6 py-5 text-xs font-black text-slate-400 uppercase tracking-widest">班別</th>
-                    <th className="px-6 py-5 text-xs font-black text-slate-400 uppercase tracking-widest">學號</th>
-                    <th className="px-6 py-5 text-xs font-black text-slate-400 uppercase tracking-widest">姓名</th>
-                    <th className="px-6 py-5 text-xs font-black text-slate-400 uppercase tracking-widest text-right">成績</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 font-medium">
-                  {submissions.length === 0 ? (
-                    <tr>
-                      <td colSpan="5" className="px-6 py-20 text-center text-slate-300 italic">
-                        目前尚無學生提交測試數據。
-                      </td>
-                    </tr>
-                  ) : (
-                    submissions.map((sub) => (
-                      <tr key={sub.id} className="hover:bg-blue-50/30 transition">
-                        <td className="px-6 py-5 text-sm text-slate-500">
-                          {sub.timestamp?.toDate().toLocaleString('zh-HK')}
-                        </td>
-                        <td className="px-6 py-5">
-                          <span className="bg-slate-100 px-3 py-1 rounded-md text-slate-700 text-sm">{sub.className}</span>
-                        </td>
-                        <td className="px-6 py-5 text-sm text-slate-600">{sub.classNo}</td>
-                        <td className="px-6 py-5 text-slate-900 font-bold">{sub.name}</td>
-                        <td className="px-6 py-5 text-right">
-                          <span className={`px-4 py-2 rounded-lg text-sm font-black ${
-                            sub.score >= 4 ? 'bg-green-100 text-green-700' : 
-                            sub.score >= 3 ? 'bg-blue-100 text-blue-700' : 'bg-red-100 text-red-700'
-                          }`}>
-                            {sub.score} / {sub.total}
-                          </span>
-                        </td>
+    <!-- 教師管理後台 -->
+    <div id="view-admin" class="hidden min-h-screen p-4 md:p-8">
+        <div class="max-w-5xl mx-auto">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+                <div>
+                    <h1 class="text-3xl font-black text-slate-800">教師數據管理後台</h1>
+                    <p class="text-slate-500 font-medium">即時同步學生測試數據</p>
+                </div>
+                <button onclick="switchView('login')" class="px-6 py-3 bg-white border-2 rounded-xl font-bold text-slate-600 hover:bg-slate-50 transition shadow-sm">返回學生登入</button>
+            </div>
+            <div class="bg-white rounded-2xl shadow-xl border overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left">
+                        <thead class="bg-slate-50 border-b-2">
+                            <tr>
+                                <th class="px-6 py-5 text-xs font-black text-slate-400 uppercase">時間</th>
+                                <th class="px-6 py-5 text-xs font-black text-slate-400 uppercase">班別</th>
+                                <th class="px-6 py-5 text-xs font-black text-slate-400 uppercase">學號</th>
+                                <th class="px-6 py-5 text-xs font-black text-slate-400 uppercase">姓名</th>
+                                <th class="px-6 py-5 text-xs font-black text-slate-400 uppercase text-right">成績</th>
+                            </tr>
+                        </thead>
+                        <tbody id="admin-table-body" class="divide-y divide-slate-100 font-medium text-sm"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- 初始化 Firebase ---
+        const firebaseConfig = JSON.parse(__firebase_config);
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'p5-ms-u5p2-quiz';
+
+        // --- 狀態管理 ---
+        let studentData = { name: '', className: 'P.5A', classNo: '' };
+        let answers = [null, null, null, null, null];
+        const questions = [
+            { q: "The animals ______ the sparkling water and played by its banks.", options: ["gazed upon", "in dismay", "cunning", "spare"], correct: "gazed upon" },
+            { q: "Which word describes a feeling that spreads easily (like laughter)?", options: ["scarcity", "infectious", "cunning", "dismay"], correct: "infectious" },
+            { q: "Choose the correct connective: ______ we pushed the nails into the sand deeply, the tent kept falling down.", options: ["Because", "So", "Although", "But"], correct: "Although" },
+            { q: "Mia was ______ by her grandfather's words to start a water-saving project.", options: ["scared", "inspired", "cunning", "filled"], correct: "inspired" },
+            { q: "The villagers ______ when the water finally came out of the new pump.", options: ["rejoiced", "took no notice", "were desperate", "cunning"], correct: "rejoiced" }
+        ];
+
+        // --- 路由切換 ---
+        function switchView(viewId) {
+            ['view-login', 'view-quiz', 'view-results', 'view-admin'].forEach(id => {
+                document.getElementById(id).classList.add('hidden');
+            });
+            document.getElementById('view-' + viewId).classList.remove('hidden');
+            if(viewId === 'admin') loadAdminData();
+        }
+
+        // --- 身份驗證 ---
+        async function initAuth() {
+            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                await auth.signInWithCustomToken(__initial_auth_token);
+            } else {
+                await auth.signInAnonymously();
+            }
+        }
+
+        // --- 登入邏輯 ---
+        document.getElementById('login-form').onsubmit = (e) => {
+            e.preventDefault();
+            studentData.name = document.getElementById('student-name').value;
+            studentData.className = document.getElementById('class-name').value;
+            studentData.classNo = document.getElementById('class-no').value;
+            
+            document.getElementById('quiz-student-info').innerText = `${studentData.className} (${studentData.classNo}) ${studentData.name}`;
+            renderQuestions();
+            switchView('quiz');
+        };
+
+        // --- 渲染題目 ---
+        function renderQuestions() {
+            const container = document.getElementById('questions-container');
+            container.innerHTML = questions.map((q, idx) => `
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                    <p class="text-lg font-bold text-slate-800 mb-4">${idx + 1}. ${q.q}</p>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        ${q.options.map(opt => `
+                            <button onclick="selectOption(${idx}, '${opt}')" id="btn-${idx}-${opt}" class="option-btn text-left px-5 py-4 rounded-xl border-2 border-slate-50 bg-slate-50 hover:bg-slate-100 transition-all font-medium">
+                                ${opt}
+                            </button>
+                        `).join('')}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function selectOption(qIdx, option) {
+            answers[qIdx] = option;
+            // 更新 UI
+            questions[qIdx].options.forEach(opt => {
+                document.getElementById(`btn-${qIdx}-${opt}`).classList.remove('selected');
+            });
+            document.getElementById(`btn-${qIdx}-${option}`).classList.add('selected');
+            
+            // 更新進度
+            const answeredCount = answers.filter(a => a !== null).length;
+            document.getElementById('progress-text').innerText = `${answeredCount} / 5`;
+            
+            if (answeredCount === 5) {
+                document.getElementById('submit-btn').disabled = false;
+            }
+        }
+
+        // --- 提交數據 ---
+        document.getElementById('submit-btn').onclick = async () => {
+            const submitBtn = document.getElementById('submit-btn');
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = `<div class="loading-spinner mr-2"></div> 正在自動上傳...`;
+
+            let score = 0;
+            answers.forEach((ans, i) => { if(ans === questions[i].correct) score++; });
+
+            try {
+                if (!auth.currentUser) await initAuth();
+                
+                await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('scores').add({
+                    ...studentData,
+                    score: score,
+                    total: 5,
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                    userId: auth.currentUser.uid
+                });
+
+                document.getElementById('final-score').innerText = score;
+                switchView('results');
+            } catch (error) {
+                console.error("Upload error:", error);
+                submitBtn.innerText = "上傳失敗，請重試";
+                submitBtn.disabled = false;
+            }
+        };
+
+        // --- 教師後台數據載入 ---
+        function loadAdminData() {
+            const tbody = document.getElementById('admin-table-body');
+            tbody.innerHTML = '<tr><td colspan="5" class="px-6 py-10 text-center text-slate-400">正在讀取雲端數據...</td></tr>';
+
+            db.collection('artifacts').doc(appId).collection('public').doc('data').collection('scores')
+              .onSnapshot(snapshot => {
+                  const data = snapshot.docs.map(doc => ({id: doc.id, ...doc.data()}))
+                                .sort((a,b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
+                  
+                  if(data.length === 0) {
+                      tbody.innerHTML = '<tr><td colspan="5" class="px-6 py-10 text-center text-slate-400 italic">目前尚無紀錄</td></tr>';
+                      return;
+                  }
+
+                  tbody.innerHTML = data.map(sub => `
+                      <tr class="hover:bg-blue-50/30 transition">
+                          <td class="px-6 py-5 text-slate-500">${sub.timestamp ? sub.timestamp.toDate().toLocaleString('zh-HK') : '-'}</td>
+                          <td class="px-6 py-5"><span class="bg-slate-100 px-2 py-1 rounded text-xs">${sub.className}</span></td>
+                          <td class="px-6 py-5 text-slate-600">${sub.classNo}</td>
+                          <td class="px-6 py-5 font-bold">${sub.name}</td>
+                          <td class="px-6 py-5 text-right font-black text-blue-600">${sub.score} / ${sub.total}</td>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-          
-          <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-blue-600 p-6 rounded-2xl text-white shadow-lg shadow-blue-200">
-              <p className="opacity-80 text-sm font-bold uppercase mb-1">總提交人數</p>
-              <p className="text-4xl font-black">{submissions.length}</p>
-            </div>
-            <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
-              <p className="text-slate-400 text-sm font-bold uppercase mb-1">平均分</p>
-              <p className="text-4xl font-black text-slate-800">
-                {submissions.length > 0 
-                  ? (submissions.reduce((acc, curr) => acc + curr.score, 0) / submissions.length).toFixed(1)
-                  : '0.0'}
-              </p>
-            </div>
-            <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4">
-              <div className="p-3 bg-amber-100 rounded-full text-amber-600">
-                <AlertCircle size={24} />
-              </div>
-              <p className="text-slate-500 text-xs font-bold leading-tight">
-                數據會實時更新。您可以直接從此表格複製數據至 Excel 或 Google Sheets 進行進一步分析。
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
+                  `).join('');
+              }, error => {
+                  tbody.innerHTML = `<tr><td colspan="5" class="px-6 py-10 text-center text-red-500">權限錯誤: ${error.message}</td></tr>`;
+              });
+        }
 
-  return null;
-};
-
-export default App;
+        // 初始化
+        window.onload = initAuth;
+    </script>
+</body>
+</html>
