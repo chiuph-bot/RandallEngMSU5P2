@@ -1,485 +1,406 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>P5 English Module Summary Test</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; -webkit-tap-highlight-color: transparent; }
-        .input-box { border-bottom: 2px solid #cbd5e1; outline: none; transition: border-color 0.3s; padding: 0 4px; }
-        .input-box:focus { border-bottom-color: #3b82f6; background-color: #eff6ff; }
-        .page { display: none; }
-        .active { display: block; }
-        .menu-card { transition: all 0.2s; border-left: 4px solid transparent; }
-        .menu-card:active { transform: scale(0.98); background-color: #f0f9ff; }
-        .review-correct { color: #059669; background-color: #ecfdf5; border-radius: 4px; padding: 0 4px; font-weight: bold; }
-        .review-wrong { color: #dc2626; background-color: #fef2f2; border-radius: 4px; padding: 0 4px; text-decoration: line-through; }
-        .explanation { font-size: 0.75rem; color: #4b5563; font-style: italic; margin-top: 2px; display: block; line-height: 1.2; border-left: 2px solid #3b82f6; padding-left: 6px; margin-bottom: 8px; }
-    </style>
-</head>
-<body class="bg-slate-100 text-slate-800">
+import React, { useState, useEffect } from 'react';
+import { initializeApp } from 'firebase/app';
+import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from 'firebase/auth';
+import { getFirestore, collection, addDoc, onSnapshot, serverTimestamp } from 'firebase/firestore';
+import { User, GraduationCap, Hash, Send, ClipboardList, CheckCircle, AlertCircle, BarChart3, Layout } from 'lucide-react';
 
-<div id="app" class="max-w-md mx-auto min-h-screen bg-white shadow-xl flex flex-col relative">
-    
-    <!-- Header -->
-    <header class="bg-blue-700 text-white p-5 sticky top-0 z-10 shadow-lg flex justify-between items-center">
-        <div>
-            <h1 id="header-title" class="text-lg font-bold">English Module Test</h1>
-            <p id="header-subtitle" class="text-[10px] opacity-80">P.5 Unit 5 Part 2 Summary</p>
-        </div>
-        <div class="flex gap-2">
-            <button id="nav-back-top" onclick="navStep(-1)" class="hidden bg-blue-800 hover:bg-blue-900 px-3 py-1 rounded text-xs font-bold border border-blue-600 transition-colors">← Back</button>
-            <button id="nav-menu-top" onclick="goToMenu()" class="hidden bg-blue-800 hover:bg-blue-900 px-3 py-1 rounded text-xs font-bold border border-blue-600 transition-colors">Menu</button>
-        </div>
-    </header>
+// Firebase 配置
+const firebaseConfig = JSON.parse(__firebase_config);
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+const appId = typeof __app_id !== 'undefined' ? __app_id : 'p5-ms-u5p2-quiz';
 
-    <!-- Progress Bar -->
-    <div id="progress-container" class="w-full bg-gray-200 h-1 hidden">
-        <div id="progress-bar" class="bg-yellow-400 h-1 transition-all duration-500" style="width: 0%"></div>
-    </div>
+const App = () => {
+  const [user, setUser] = useState(null);
+  const [view, setView] = useState('login'); // 'login', 'quiz', 'results', 'admin'
+  const [studentInfo, setStudentInfo] = useState({ name: '', className: 'P.5A', classNo: '' });
+  const [score, setScore] = useState(0);
+  const [submissions, setSubmissions] = useState([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [authStatus, setAuthStatus] = useState('initializing');
 
-    <main class="flex-grow p-5 overflow-y-auto">
-        
-        <!-- MENU -->
-        <section id="page-menu" class="page active">
-            <div class="text-center mb-8">
-                <div class="bg-blue-50 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 border-2 border-blue-200">
-                    <span class="text-4xl">📝</span>
-                </div>
-                <h2 class="text-2xl font-black text-slate-700 uppercase tracking-tight">Summary Test</h2>
-                <p class="text-sm text-slate-500">Practice makes perfect!</p>
-            </div>
-
-            <div class="space-y-3">
-                <button onclick="startMode('all')" class="w-full menu-card p-4 bg-white border rounded-xl shadow-sm flex items-center gap-4 hover:border-blue-300">
-                    <div class="bg-orange-100 p-3 rounded-lg text-xl">🏆</div>
-                    <div class="text-left">
-                        <div class="font-bold text-slate-800">Full Summary Test</div>
-                        <div class="text-xs text-slate-500">All Parts (A-D) • 50 Marks total</div>
-                    </div>
-                </button>
-
-                <div class="relative py-4">
-                    <div class="absolute inset-0 flex items-center"><span class="w-full border-t border-slate-200"></span></div>
-                    <div class="relative flex justify-center text-xs uppercase"><span class="bg-white px-2 text-slate-400 font-bold tracking-widest">Individual Parts</span></div>
-                </div>
-
-                <div class="grid grid-cols-2 gap-3">
-                    <button onclick="startMode('part-a')" class="menu-card p-3 border rounded-xl shadow-sm text-center bg-white hover:shadow-md">
-                        <div class="text-lg mb-1">🔤</div>
-                        <div class="font-bold text-xs">PART A</div>
-                        <div class="text-[10px] text-slate-500">Vocabulary</div>
-                    </button>
-                    <button onclick="startMode('part-b')" class="menu-card p-3 border rounded-xl shadow-sm text-center bg-white hover:shadow-md">
-                        <div class="text-lg mb-1">🔗</div>
-                        <div class="font-bold text-xs">PART B</div>
-                        <div class="text-[10px] text-slate-500">Connectives</div>
-                    </button>
-                    <button onclick="startMode('part-c')" class="menu-card p-3 border rounded-xl shadow-sm text-center bg-white hover:shadow-md">
-                        <div class="text-lg mb-1">🔍</div>
-                        <div class="font-bold text-xs">PART C</div>
-                        <div class="text-[10px] text-slate-500">Proofreading</div>
-                    </button>
-                    <button onclick="startMode('part-d')" class="menu-card p-3 border rounded-xl shadow-sm text-center bg-white hover:shadow-md">
-                        <div class="text-lg mb-1">📖</div>
-                        <div class="font-bold text-xs">PART D</div>
-                        <div class="text-[10px] text-slate-500">Reading</div>
-                    </button>
-                </div>
-            </div>
-        </section>
-
-        <!-- PART A -->
-        <section id="page-part-a" class="page">
-            <h3 class="bg-blue-100 text-blue-800 px-3 py-1 rounded-md font-bold text-sm mb-4 inline-block">Part A: Vocabulary (12 marks)</h3>
-            <div id="review-banner-a" class="hidden bg-amber-100 text-amber-900 text-xs p-2 rounded mb-4 font-bold">Review Mode: Showing explanations for mistakes.</div>
-            <div class="flex flex-wrap gap-1 mb-4 p-2 bg-slate-50 rounded border text-[10px] font-bold">
-                <span class="bg-white border px-2 py-1 rounded uppercase">took no notice of</span>
-                <span class="bg-white border px-2 py-1 rounded uppercase">in dismay</span>
-                <span class="bg-white border px-2 py-1 rounded uppercase">with great pride</span>
-                <span class="bg-white border px-2 py-1 rounded uppercase">inspired by</span>
-                <span class="bg-white border px-2 py-1 rounded uppercase">infectious</span>
-                <span class="bg-white border px-2 py-1 rounded uppercase">availability</span>
-            </div>
-            <div id="content-a" class="text-base leading-relaxed text-slate-700 bg-white p-2">
-                In a small village, the trees were withering. Mia looked at the cracked land (1) <span id="r-a1"></span><input type="text" id="a1" class="input-box w-20 text-center" placeholder="...">.
-                <br><br>
-                (2) <span id="r-a2"></span><input type="text" id="a2" class="input-box w-28 text-center" placeholder="..."> her grandfather's words, she decided to save water. Her passion was (3) <span id="r-a3"></span><input type="text" id="a3" class="input-box w-20 text-center" placeholder="..."> and everyone joined in. 
-                <br><br>
-                Some villagers doubted them, but Mia (4) <span id="r-a4"></span><input type="text" id="a4" class="input-box w-32 text-center" placeholder="..."> their concerns and continued. They checked the (5) <span id="r-a5"></span><input type="text" id="a5" class="input-box w-24 text-center" placeholder="..."> of the rainwater every day.
-                <br><br>
-                Finally, when they saw the full buckets, Mia looked at their work (6) <span id="r-a6"></span><input type="text" id="a6" class="input-box w-32 text-center" placeholder="...">.
-            </div>
-        </section>
-
-        <!-- PART B -->
-        <section id="page-part-b" class="page">
-            <h3 class="bg-blue-100 text-blue-800 px-3 py-1 rounded-md font-bold text-sm mb-4 inline-block">Part B: Connectives (8 marks)</h3>
-            <div class="space-y-6 mt-4">
-                <div class="bg-slate-50 p-3 rounded-lg border">
-                    <p class="text-sm font-medium mb-2">1. The villagers were worried _______ the stream was filled with garbage.</p>
-                    <span id="r-b1"></span><input type="text" id="b1" class="input-box w-full" placeholder="because / so / although / but">
-                </div>
-                <div class="bg-slate-50 p-3 rounded-lg border">
-                    <p class="text-sm font-medium mb-2">2. _______ the sand was loose, we pushed the nails in deeply.</p>
-                    <span id="r-b2"></span><input type="text" id="b2" class="input-box w-full" placeholder="because / so / although / but">
-                </div>
-                <div class="bg-slate-50 p-3 rounded-lg border">
-                    <p class="text-sm font-medium mb-2">3. It was a life-and-death situation, _______ we must act now.</p>
-                    <span id="r-b3"></span><input type="text" id="b3" class="input-box w-full" placeholder="because / so / although / but">
-                </div>
-                <div class="bg-slate-50 p-3 rounded-lg border">
-                    <p class="text-sm font-medium mb-2">4. Ben wanted to spend time with his parents, _______ they were busy.</p>
-                    <span id="r-b4"></span><input type="text" id="b4" class="input-box w-full" placeholder="because / so / although / but">
-                </div>
-            </div>
-        </section>
-
-        <!-- PART C -->
-        <section id="page-part-c" class="page">
-            <h3 class="bg-blue-100 text-blue-800 px-3 py-1 rounded-md font-bold text-sm mb-4 inline-block">Part C: Proofreading (10 marks)</h3>
-            <div class="space-y-4">
-                <div class="p-3 border rounded bg-slate-50">
-                    <div class="flex items-center justify-between mb-2">
-                        <span class="text-xs">1. I was <u class="text-red-500 font-bold">disapointed</u> with the results.</span>
-                        <input type="text" id="c1" class="input-box w-24 text-right" placeholder="Correction">
-                    </div>
-                    <span id="r-c1"></span>
-                </div>
-                <div class="p-3 border rounded bg-slate-50">
-                    <div class="flex items-center justify-between mb-2">
-                        <span class="text-xs">2. I got the report card <u class="text-red-500 font-bold">in</u> Mr. Chow.</span>
-                        <input type="text" id="c2" class="input-box w-24 text-right" placeholder="Correction">
-                    </div>
-                    <span id="r-c2"></span>
-                </div>
-                <div class="p-3 border rounded bg-slate-50">
-                    <div class="flex items-center justify-between mb-2">
-                        <span class="text-xs">3. She <u class="text-red-500 font-bold">invites</u> me to a party yesterday.</span>
-                        <input type="text" id="c3" class="input-box w-24 text-right" placeholder="Correction">
-                    </div>
-                    <span id="r-c3"></span>
-                </div>
-                <div class="p-3 border rounded bg-slate-50">
-                    <div class="flex items-center justify-between mb-2">
-                        <span class="text-xs">4. Luckily, she <u class="text-red-500 font-bold">forgived</u> me at last.</span>
-                        <input type="text" id="c4" class="input-box w-24 text-right" placeholder="Correction">
-                    </div>
-                    <span id="r-c4"></span>
-                </div>
-                <div class="p-3 border rounded bg-slate-50">
-                    <div class="flex items-center justify-between mb-2">
-                        <span class="text-xs">5. Ben <u class="text-red-500 font-bold">gazed to</u> the ceiling.</span>
-                        <input type="text" id="c5" class="input-box w-24 text-right" placeholder="Correction">
-                    </div>
-                    <span id="r-c5"></span>
-                </div>
-            </div>
-        </section>
-
-        <!-- PART D -->
-        <section id="page-part-d" class="page">
-            <h3 class="bg-blue-100 text-blue-800 px-3 py-1 rounded-md font-bold text-sm mb-4 inline-block">Part D: Reading (20 marks)</h3>
-            <div class="bg-slate-100 p-3 rounded text-sm mb-4 border italic">
-                "Some lack access to clean drinking water, while others live in regions that lack proper facilities... People often throw rubbish in the countryside. We must take our rubbish home to save our nature. A volunteer, Vivian, shared her experience with great pride."
-            </div>
-            <div class="space-y-5">
-                <div>
-                    <p class="text-sm font-bold">1. Which is the best title for the article?</p>
-                    <div id="r-d1" class="mt-2 space-y-2">
-                        <label class="block p-2 border rounded text-xs bg-white"><input type="radio" name="d1" value="A"> A. Planting Trees in the City</label>
-                        <label class="block p-2 border rounded text-xs bg-white"><input type="radio" name="d1" value="B"> B. Love Our Countryside</label>
-                        <label class="block p-2 border rounded text-xs bg-white"><input type="radio" name="d1" value="C"> C. Don't Feed the Monkeys</label>
-                    </div>
-                </div>
-                <hr>
-                <div>
-                    <p class="text-sm font-bold">2. Use ONE word from the text to fill in the blanks.</p>
-                    <div class="mt-2 space-y-3 text-sm leading-loose">
-                        Lily: Hi Vivian, are you a (i) <span id="r-d2i"></span><input type="text" id="d2i" class="input-box w-20 text-center"> here?
-                        <br>
-                        Vivian: Yes, I am picking up the (ii) <span id="r-d2ii"></span><input type="text" id="d2ii" class="input-box w-20 text-center"> left by visitors.
-                        <br>
-                        Lily: We should protect our (iii) <span id="r-d2iii"></span><input type="text" id="d2iii" class="input-box w-20 text-center"> together.
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- RESULT PAGE -->
-        <section id="page-result" class="page text-center pb-10">
-            <div id="result-emoji" class="text-7xl mb-4 pt-5">🎖️</div>
-            <h2 class="text-3xl font-bold text-slate-800">Final Score</h2>
-            <div class="text-6xl font-black text-blue-700 my-4">
-                <span id="final-score">0</span><span id="score-max" class="text-2xl text-slate-400">/50</span>
-            </div>
-            
-            <div id="breakdown" class="bg-slate-50 rounded-xl p-4 mb-6 text-left border">
-                <h4 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Score Breakdown</h4>
-                <div id="breakdown-list" class="space-y-2 text-sm font-medium"></div>
-            </div>
-
-            <div class="space-y-3">
-                <button onclick="startReview()" class="w-full bg-orange-500 text-white py-3 rounded-xl font-bold shadow hover:bg-orange-600 transition-colors flex items-center justify-center gap-2">
-                    <span>🔍</span> Review All Parts
-                </button>
-                <button onclick="showSuggestions()" class="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold shadow hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2">
-                    <span>💡</span> Suggestions for Improvement
-                </button>
-                <button onclick="goToMenu()" class="w-full bg-slate-200 text-slate-700 py-3 rounded-xl font-bold hover:bg-slate-300 transition-colors">
-                    Back to Menu
-                </button>
-            </div>
-        </section>
-
-        <!-- SUGGESTIONS MODAL -->
-        <div id="modal-suggestions" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-6 hidden">
-            <div class="bg-white rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl flex flex-col">
-                <div class="bg-indigo-600 text-white p-4 font-bold flex justify-between items-center">
-                    <span>Improvement Tips</span>
-                    <button onclick="closeModal()" class="text-2xl">&times;</button>
-                </div>
-                <div id="suggestions-content" class="p-6 text-sm leading-relaxed text-slate-600 overflow-y-auto max-h-[60vh]">
-                </div>
-                <div class="p-4 bg-slate-50 text-center">
-                    <button onclick="closeModal()" class="bg-indigo-600 text-white px-8 py-2 rounded-lg font-bold">Got it!</button>
-                </div>
-            </div>
-        </div>
-
-    </main>
-
-    <!-- Navigation Footer (Used for Test and Review) -->
-    <footer id="test-footer" class="p-4 bg-white border-t hidden flex justify-between items-center">
-        <button id="btn-back" onclick="navStep(-1)" class="px-5 py-2 text-slate-400 font-bold uppercase text-xs">Back</button>
-        <button id="btn-next" onclick="navStep(1)" class="bg-blue-600 text-white px-8 py-2 rounded-lg font-bold shadow-md active:bg-blue-800 uppercase text-xs">Next</button>
-    </footer>
-
-</div>
-
-<script>
-    let activeMode = 'all';
-    let currentStep = 0;
-    let sequence = [];
-    let isReviewMode = false;
-    let userAnswers = {};
-    let partScores = { a: 0, b: 0, c: 0, d: 0 };
-    let partMax = { a: 12, b: 8, c: 10, d: 20 };
-
-    const ANSWERS = {
-        a1: 'in dismay', a2: 'inspired by', a3: 'infectious', a4: 'took no notice of', a5: 'availability', a6: 'with great pride',
-        b1: 'because', b2: 'although', b3: 'so', b4: 'but',
-        c1: 'disappointed', c2: 'from', c3: 'invited', c4: 'forgave', c5: 'gazed upon',
-        d1: 'B', d2i: 'volunteer', d2ii: 'rubbish', d2iii: 'nature'
-    };
-
-    const EXPLANATIONS = {
-        a1: 'We use "in dismay" to show shock or sadness at a bad situation.',
-        a2: '"Inspired by" means to be influenced positively by someone or something.',
-        a3: '"Infectious" here means excitement that spreads quickly to others.',
-        a4: '"Took no notice of" means to ignore someone or something.',
-        a5: '"Availability" refers to whether something (water) can be obtained.',
-        a6: '"With great pride" means feeling very pleased with an achievement.',
-        b1: '"Because" gives the reason for the worry.',
-        b2: '"Although" introduces a contrast (despite the loose sand).',
-        b3: '"So" shows the result of the urgent situation.',
-        b4: '"But" shows contrast between wanting to play and them being busy.',
-        c1: 'Spelling check: disappointed (double p, single s).',
-        c2: 'Preposition check: get something "from" someone.',
-        c3: 'Tense check: "yesterday" requires Past Tense "invited".',
-        c4: 'Tense check: Irregular past tense of forgive is "forgave".',
-        c5: 'Phrase check: We "gaze upon" or "gaze at" something.',
-        d1: 'The text focuses on water conservation and countryside care.',
-        d2i: 'A "volunteer" is someone who helps for free.',
-        d2ii: 'Synonym for garbage used in the text.',
-        d2iii: 'Protecting the environment/nature.'
-    };
-
-    function startMode(mode) {
-        activeMode = mode;
-        isReviewMode = false;
-        document.getElementById('page-menu').classList.remove('active');
-        document.getElementById('progress-container').classList.remove('hidden');
-        document.getElementById('test-footer').classList.remove('hidden');
-        document.getElementById('nav-menu-top').classList.remove('hidden');
-        document.getElementById('nav-back-top').classList.remove('hidden');
-        
-        if (mode === 'all') {
-            sequence = ['page-part-a', 'page-part-b', 'page-part-c', 'page-part-d', 'page-result'];
+  // 初始化身份驗證 (遵守 Rule 3)
+  useEffect(() => {
+    const initAuth = async () => {
+      try {
+        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+          await signInWithCustomToken(auth, __initial_auth_token);
         } else {
-            sequence = ['page-' + mode, 'page-result'];
+          await signInAnonymously(auth);
         }
-        
-        currentStep = 0;
-        showStep();
-    }
-
-    function showStep() {
-        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-        const pageId = sequence[currentStep];
-        const pageEl = document.getElementById(pageId);
-        if (pageEl) pageEl.classList.add('active');
-        
-        // Header Titles
-        const titles = {
-            'page-part-a': 'Part A: Vocabulary',
-            'page-part-b': 'Part B: Connectives',
-            'page-part-c': 'Part C: Proofreading',
-            'page-part-d': 'Part D: Reading',
-            'page-result': 'Test Result'
-        };
-        document.getElementById('header-title').innerText = titles[pageId] || 'P5 English Test';
-
-        // Nav Buttons Logic
-        const foot = document.getElementById('test-footer');
-        const nextBtn = document.getElementById('btn-next');
-        const backBtn = document.getElementById('btn-back');
-        const backTopBtn = document.getElementById('nav-back-top');
-
-        if (pageId === 'page-result') {
-            foot.classList.add('hidden');
-            document.getElementById('progress-container').classList.add('hidden');
-            if (!isReviewMode) calculate();
-        } else {
-            foot.classList.remove('hidden');
-            document.getElementById('progress-container').classList.remove('hidden');
-            
-            // Back buttons visibility
-            const isFirst = (currentStep === 0);
-            backBtn.style.visibility = isFirst ? 'hidden' : 'visible';
-            backTopBtn.style.visibility = isFirst ? 'hidden' : 'visible';
-
-            // Next button text
-            if (isReviewMode) {
-                nextBtn.innerText = (currentStep === sequence.length - 2) ? 'End Review' : 'Next Part';
-                nextBtn.classList.replace('bg-green-600', 'bg-blue-600');
-            } else {
-                if (currentStep === sequence.length - 2) {
-                    nextBtn.innerText = 'Submit';
-                    nextBtn.classList.replace('bg-blue-600', 'bg-green-600');
-                } else {
-                    nextBtn.innerText = 'Next';
-                    nextBtn.classList.replace('bg-green-600', 'bg-blue-600');
-                }
-            }
-        }
-
-        // Progress Calculation
-        const progress = (currentStep / (sequence.length - 1)) * 100;
-        document.getElementById('progress-bar').style.width = progress + '%';
-        window.scrollTo(0, 0);
-    }
-
-    function navStep(dir) {
-        if (currentStep + dir < 0) return;
-        if (currentStep + dir >= sequence.length) return;
-        currentStep += dir;
-        showStep();
-    }
-
-    function calculate() {
-        partScores = { a: 0, b: 0, c: 0, d: 0 };
-        
-        const saveAnswer = (id) => {
-            const el = document.getElementById(id);
-            if (el && el.style.display !== 'none') {
-                userAnswers[id] = el.value.trim();
-            }
-        };
-
-        const radioAns = (name) => {
-            const el = document.querySelector(`input[name="${name}"]:checked`);
-            if (!isReviewMode) userAnswers[name] = el ? el.value : "";
-        };
-
-        // Collect all if not review
-        if (!isReviewMode) {
-            ['a1','a2','a3','a4','a5','a6','b1','b2','b3','b4','c1','c2','c3','c4','c5','d2i','d2ii','d2iii'].forEach(saveAnswer);
-            radioAns('d1');
-        }
-
-        // Score logic
-        ['a1','a2','a3','a4','a5','a6'].forEach(id => { if ((userAnswers[id]||'').toLowerCase() === ANSWERS[id].toLowerCase()) partScores.a += 2; });
-        ['b1','b2','b3','b4'].forEach(id => { if ((userAnswers[id]||'').toLowerCase() === ANSWERS[id].toLowerCase()) partScores.b += 2; });
-        ['c1','c2','c3','c4','c5'].forEach(id => { if ((userAnswers[id]||'').toLowerCase() === ANSWERS[id].toLowerCase()) partScores.c += 2; });
-        if (userAnswers.d1 === ANSWERS.d1) partScores.d += 8;
-        ['d2i','d2ii','d2iii'].forEach(id => { if ((userAnswers[id]||'').toLowerCase() === ANSWERS[id].toLowerCase()) partScores.d += 4; });
-
-        const total = partScores.a + partScores.b + partScores.c + partScores.d;
-        let possibleMax = (activeMode === 'all') ? 50 : partMax[activeMode.split('-')[1]];
-
-        document.getElementById('final-score').innerText = total;
-        document.getElementById('score-max').innerText = '/' + possibleMax;
-
-        const list = document.getElementById('breakdown-list');
-        list.innerHTML = '';
-        const partsToDisplay = activeMode === 'all' ? ['a', 'b', 'c', 'd'] : [activeMode.split('-')[1]];
-        partsToDisplay.forEach(p => {
-            const name = { a: 'Vocabulary', b: 'Connectives', c: 'Proofreading', d: 'Reading' }[p];
-            const div = document.createElement('div');
-            div.className = "flex justify-between items-center";
-            div.innerHTML = `<span>Part ${p.toUpperCase()} (${name})</span> <span>${partScores[p]}/${partMax[p]}</span>`;
-            list.appendChild(div);
-        });
-
-        const emoji = document.getElementById('result-emoji');
-        const percent = (total / possibleMax) * 100;
-        if (percent >= 90) emoji.innerText = "🌟";
-        else if (percent >= 70) emoji.innerText = "🥈";
-        else emoji.innerText = "📚";
-    }
-
-    function startReview() {
-        isReviewMode = true;
-        currentStep = 0;
-        
-        // Setup banners and marks
-        document.getElementById('review-banner-a').classList.remove('hidden');
-
-        Object.keys(ANSWERS).forEach(id => {
-            const rSpan = document.getElementById('r-' + id);
-            const input = document.getElementById(id);
-            if (!rSpan) return;
-
-            const uVal = userAnswers[id] || "(No Answer)";
-            const isCorrect = uVal.toLowerCase() === ANSWERS[id].toLowerCase();
-            
-            if (id === 'd1') {
-                const radios = document.getElementsByName('d1');
-                radios.forEach(r => r.disabled = true);
-                rSpan.innerHTML = `<div class="p-2 bg-blue-50 border-l-4 border-blue-500 rounded text-xs mb-2"><b>Correct Answer:</b> ${ANSWERS[id]}<br><span class="italic text-slate-500">${EXPLANATIONS[id]}</span></div>`;
-            } else {
-                if (input) input.style.display = 'none';
-                rSpan.innerHTML = isCorrect 
-                    ? `<span class="review-correct">✓ ${uVal}</span>`
-                    : `<span class="review-wrong">${uVal}</span> <span class="review-correct">${ANSWERS[id]}</span><span class="explanation">${EXPLANATIONS[id]}</span>`;
-            }
-        });
-        
-        showStep();
-    }
-
-    function showSuggestions() {
-        const content = document.getElementById('suggestions-content');
-        let html = "<ul class='space-y-4'>";
-        if (partScores.a / partMax.a < 0.7) html += "<li><b>Part A (Vocabulary):</b> Practice phrasal vocabulary like <i>'in dismay'</i> and <i>'inspired by'</i>. Context clues help you pick the right phrase!</li>";
-        if (partScores.b / partMax.b < 0.7) html += "<li><b>Part B (Connectives):</b> Focus on <i>'although'</i> for contrasting facts. If the sentence shows two opposite ideas, use 'but' or 'although'.</li>";
-        if (partScores.c / partMax.c < 0.7) html += "<li><b>Part C (Proofreading):</b> Review irregular past tense verbs (<i>forgave</i>, <i>invited</i>). Always check for double letters in common words like <i>'disappointed'</i>.</li>";
-        if (partScores.d / partMax.d < 0.7) html += "<li><b>Part D (Reading):</b> Skim the text for exact words. Answers for the blanks are usually found directly in the text!</li>";
-        if (html === "<ul class='space-y-4'>") html += "<li>Excellent work! Try to explain the grammar rules to a friend to master them completely.</li>";
-        html += "</ul>";
-        content.innerHTML = html;
-        document.getElementById('modal-suggestions').classList.remove('hidden');
-    }
-
-    function closeModal() { document.getElementById('modal-suggestions').classList.add('hidden'); }
-    function goToMenu() { location.reload(); }
-
-    window.addEventListener('resize', () => {
-        let vh = window.innerHeight * 0.01;
-        document.documentElement.style.setProperty('--vh', `${vh}px`);
+      } catch (error) {
+        console.error("身份驗證錯誤:", error);
+      }
+    };
+    initAuth();
+    const unsubscribe = onAuthStateChanged(auth, (u) => {
+      setUser(u);
+      setAuthStatus(u ? 'authenticated' : 'failed');
     });
-</script>
-</body>
-</html>
+    return () => unsubscribe();
+  }, []);
+
+  // 獲取後台數據 (遵守 Rule 1 & 2)
+  useEffect(() => {
+    if (!user || view !== 'admin') return;
+
+    const scoresCol = collection(db, 'artifacts', appId, 'public', 'data', 'scores');
+    
+    const unsubscribe = onSnapshot(
+      scoresCol, 
+      (snapshot) => {
+        const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        // 在記憶體中排序（避免需要建立複合索引）
+        const sortedDocs = docs.sort((a, b) => {
+          const timeA = a.timestamp?.seconds || 0;
+          const timeB = b.timestamp?.seconds || 0;
+          return timeB - timeA;
+        });
+        setSubmissions(sortedDocs);
+      }, 
+      (error) => {
+        console.error("Firestore 權限或查詢錯誤:", error);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [user, view]);
+
+  const handleStartQuiz = (e) => {
+    e.preventDefault();
+    if (studentInfo.name && studentInfo.classNo) {
+      setView('quiz');
+    }
+  };
+
+  // 自動上傳數據至雲端
+  const submitToCloud = async (finalScore) => {
+    if (!user) return;
+
+    setIsSubmitting(true);
+    try {
+      await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'scores'), {
+        ...studentInfo,
+        score: finalScore,
+        total: 5,
+        timestamp: serverTimestamp(),
+        userId: user.uid
+      });
+      setView('results');
+    } catch (error) {
+      console.error("數據上傳失敗:", error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // 測試題目 (根據 U5P2 內容)
+  const questions = [
+    {
+      q: "Fill in the blank: The animals ______ the sparkling water and played by its banks.",
+      options: ["gazed upon", "in dismay", "cunning", "spare"],
+      correct: "gazed upon"
+    },
+    {
+      q: "Which word describes a feeling that spreads easily among people (like laughter)?",
+      options: ["scarcity", "infectious", "cunning", "dismay"],
+      correct: "infectious"
+    },
+    {
+      q: "Choose the correct connective: ______ we pushed the nails into the sand deeply, the tent kept falling down.",
+      options: ["Because", "So", "Although", "But"],
+      correct: "Although"
+    },
+    {
+      q: "Mia was ______ by her grandfather's words to start a water-saving project.",
+      options: ["scared", "inspired", "cunning", "filled"],
+      correct: "inspired"
+    },
+    {
+      q: "The villagers ______ when the water finally came out of the new pump.",
+      options: ["rejoiced", "took no notice", "were desperate", "cunning"],
+      correct: "rejoiced"
+    }
+  ];
+
+  const [currentAnswers, setCurrentAnswers] = useState(new Array(questions.length).fill(null));
+
+  const handleFinish = () => {
+    let s = 0;
+    currentAnswers.forEach((ans, idx) => {
+      if (ans === questions[idx].correct) s++;
+    });
+    setScore(s);
+    submitToCloud(s);
+  };
+
+  if (authStatus === 'initializing') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  // 登入頁面 (輸入個人資料)
+  if (view === 'login') {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8 border border-slate-100">
+          <div className="text-center mb-8">
+            <div className="inline-flex p-3 bg-blue-100 rounded-full text-blue-600 mb-4">
+              <ClipboardList size={32} />
+            </div>
+            <h1 className="text-2xl font-bold text-slate-800">P.5 英文單元測驗</h1>
+            <p className="text-slate-500 font-medium">Unit 5 Part 2 - 詞彙與語法</p>
+          </div>
+
+          <form onSubmit={handleStartQuiz} className="space-y-5">
+            <div>
+              <label className="block text-sm font-bold text-slate-700 mb-1 flex items-center gap-2">
+                <User size={16} className="text-blue-500" /> 學生姓名
+              </label>
+              <input 
+                required
+                className="w-full px-4 py-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none transition"
+                placeholder="請輸入完整姓名"
+                value={studentInfo.name}
+                onChange={e => setStudentInfo({...studentInfo, name: e.target.value})}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-1 flex items-center gap-2">
+                  <GraduationCap size={16} className="text-blue-500" /> 班別
+                </label>
+                <select 
+                  className="w-full px-4 py-3 rounded-lg border border-slate-200 bg-white"
+                  value={studentInfo.className}
+                  onChange={e => setStudentInfo({...studentInfo, className: e.target.value})}
+                >
+                  <option>P.5A</option>
+                  <option>P.5B</option>
+                  <option>P.5C</option>
+                  <option>P.5D</option>
+                  <option>P.5E</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-1 flex items-center gap-2">
+                  <Hash size={16} className="text-blue-500" /> 學號
+                </label>
+                <input 
+                  required
+                  type="number"
+                  className="w-full px-4 py-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none"
+                  placeholder="例如: 15"
+                  value={studentInfo.classNo}
+                  onChange={e => setStudentInfo({...studentInfo, classNo: e.target.value})}
+                />
+              </div>
+            </div>
+
+            <button 
+              type="submit"
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl transition shadow-lg shadow-blue-200 flex items-center justify-center gap-2"
+            >
+              開始測試 <Send size={18} />
+            </button>
+          </form>
+
+          <div className="mt-8 pt-6 border-t border-slate-100">
+            <button 
+              onClick={() => setView('admin')}
+              className="w-full text-slate-400 text-xs hover:text-blue-600 flex items-center justify-center gap-2 transition"
+            >
+              <BarChart3 size={14} /> 教師管理後台 (查看所有數據)
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // 測試中頁面
+  if (view === 'quiz') {
+    return (
+      <div className="min-h-screen bg-slate-50 p-4 md:p-8">
+        <div className="max-w-2xl mx-auto space-y-6">
+          <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex justify-between items-center sticky top-4 z-10">
+            <div>
+              <p className="text-xs text-slate-400 font-bold tracking-wider uppercase">考生資訊</p>
+              <p className="font-bold text-slate-700">{studentInfo.className} ({studentInfo.classNo}) {studentInfo.name}</p>
+            </div>
+            <div className="text-right">
+              <p className="text-xs text-slate-400 font-bold tracking-wider uppercase">完成進度</p>
+              <p className="font-bold text-blue-600">
+                {currentAnswers.filter(a => a !== null).length} / {questions.length}
+              </p>
+            </div>
+          </div>
+
+          {questions.map((q, idx) => (
+            <div key={idx} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+              <p className="text-lg font-bold text-slate-800 mb-4">{idx + 1}. {q.q}</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {q.options.map(opt => (
+                  <button
+                    key={opt}
+                    onClick={() => {
+                      const newAns = [...currentAnswers];
+                      newAns[idx] = opt;
+                      setCurrentAnswers(newAns);
+                    }}
+                    className={`text-left px-5 py-4 rounded-xl border-2 transition-all font-medium ${
+                      currentAnswers[idx] === opt 
+                        ? 'border-blue-600 bg-blue-50 text-blue-700 shadow-inner' 
+                        : 'border-slate-50 bg-slate-50 hover:bg-slate-100 text-slate-600'
+                    }`}
+                  >
+                    {opt}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
+
+          <button
+            disabled={currentAnswers.some(a => a === null) || isSubmitting}
+            onClick={handleFinish}
+            className="w-full bg-green-600 hover:bg-green-700 disabled:bg-slate-300 text-white font-black py-5 rounded-2xl transition shadow-xl flex items-center justify-center gap-2 text-lg"
+          >
+            {isSubmitting ? '正在自動上傳數據...' : '完成並提交測試'} <CheckCircle size={22} />
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // 結果頁面
+  if (view === 'results') {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-white rounded-3xl shadow-2xl overflow-hidden text-center">
+          <div className="p-10 bg-green-600 text-white">
+            <CheckCircle size={80} className="mx-auto mb-4" />
+            <h2 className="text-3xl font-bold">測試已完成！</h2>
+            <p className="text-green-50 點 font-medium">數據已成功自動上傳雲端</p>
+          </div>
+          <div className="p-10">
+            <p className="text-slate-400 font-bold text-sm mb-2">你的得分</p>
+            <div className="mb-8">
+              <span className="text-7xl font-black text-slate-800">{score}</span>
+              <span className="text-3xl text-slate-300 font-bold"> / {questions.length}</span>
+            </div>
+            <p className="text-slate-600 mb-10 font-medium">老師已可以在後台查閱你的表現。</p>
+            <button 
+              onClick={() => window.location.reload()}
+              className="w-full py-4 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold rounded-xl transition"
+            >
+              返回首頁
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // 教師管理後台 (類似 Google Sheets)
+  if (view === 'admin') {
+    return (
+      <div className="min-h-screen bg-slate-50 p-4 md:p-8">
+        <div className="max-w-5xl mx-auto">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+            <div>
+              <h1 className="text-3xl font-black text-slate-800 flex items-center gap-3">
+                <Layout className="text-blue-600" /> 教師數據管理後台
+              </h1>
+              <p className="text-slate-500 font-medium mt-1">即時同步學生測試數據，協助評估學習表現</p>
+            </div>
+            <button 
+              onClick={() => setView('login')}
+              className="px-6 py-3 bg-white border-2 border-slate-200 rounded-xl font-bold text-slate-600 hover:bg-slate-50 transition shadow-sm"
+            >
+              返回學生登入頁面
+            </button>
+          </div>
+
+          <div className="bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left">
+                <thead className="bg-slate-50 border-b-2 border-slate-100">
+                  <tr>
+                    <th className="px-6 py-5 text-xs font-black text-slate-400 uppercase tracking-widest">提交時間</th>
+                    <th className="px-6 py-5 text-xs font-black text-slate-400 uppercase tracking-widest">班別</th>
+                    <th className="px-6 py-5 text-xs font-black text-slate-400 uppercase tracking-widest">學號</th>
+                    <th className="px-6 py-5 text-xs font-black text-slate-400 uppercase tracking-widest">姓名</th>
+                    <th className="px-6 py-5 text-xs font-black text-slate-400 uppercase tracking-widest text-right">成績</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 font-medium">
+                  {submissions.length === 0 ? (
+                    <tr>
+                      <td colSpan="5" className="px-6 py-20 text-center text-slate-300 italic">
+                        目前尚無學生提交測試數據。
+                      </td>
+                    </tr>
+                  ) : (
+                    submissions.map((sub) => (
+                      <tr key={sub.id} className="hover:bg-blue-50/30 transition">
+                        <td className="px-6 py-5 text-sm text-slate-500">
+                          {sub.timestamp?.toDate().toLocaleString('zh-HK')}
+                        </td>
+                        <td className="px-6 py-5">
+                          <span className="bg-slate-100 px-3 py-1 rounded-md text-slate-700 text-sm">{sub.className}</span>
+                        </td>
+                        <td className="px-6 py-5 text-sm text-slate-600">{sub.classNo}</td>
+                        <td className="px-6 py-5 text-slate-900 font-bold">{sub.name}</td>
+                        <td className="px-6 py-5 text-right">
+                          <span className={`px-4 py-2 rounded-lg text-sm font-black ${
+                            sub.score >= 4 ? 'bg-green-100 text-green-700' : 
+                            sub.score >= 3 ? 'bg-blue-100 text-blue-700' : 'bg-red-100 text-red-700'
+                          }`}>
+                            {sub.score} / {sub.total}
+                          </span>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          
+          <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="bg-blue-600 p-6 rounded-2xl text-white shadow-lg shadow-blue-200">
+              <p className="opacity-80 text-sm font-bold uppercase mb-1">總提交人數</p>
+              <p className="text-4xl font-black">{submissions.length}</p>
+            </div>
+            <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+              <p className="text-slate-400 text-sm font-bold uppercase mb-1">平均分</p>
+              <p className="text-4xl font-black text-slate-800">
+                {submissions.length > 0 
+                  ? (submissions.reduce((acc, curr) => acc + curr.score, 0) / submissions.length).toFixed(1)
+                  : '0.0'}
+              </p>
+            </div>
+            <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4">
+              <div className="p-3 bg-amber-100 rounded-full text-amber-600">
+                <AlertCircle size={24} />
+              </div>
+              <p className="text-slate-500 text-xs font-bold leading-tight">
+                數據會實時更新。您可以直接從此表格複製數據至 Excel 或 Google Sheets 進行進一步分析。
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return null;
+};
+
+export default App;
